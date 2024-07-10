@@ -161,13 +161,16 @@ public:
 };
 
 class Store {
-private:
+// private:
+
+public:
+
     std::vector<Employee> employees;
     std::vector<Customer> customers;
     std::vector<Sale> sales;
     std::vector<Item*> items;
 
-public:
+// public:
 
 
     void addEmployee() {
@@ -210,26 +213,110 @@ public:
         items.push_back(item);
     }
 
-
     void serialize() {
         std::ofstream file("Data.bin", std::ios::binary);
-        // Serialize all objects and write the output to file
+        if (!file.is_open()) {
+            std::cerr << "Error: Could not open file for writing." << std::endl;
+            return;
+        }
+
+        // Serialize employees
+        size_t size = employees.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (const auto& employee : employees) {
+            std::vector<char> data = employee.serialize();
+            size = data.size();
+            file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            file.write(data.data(), size);
+        }
+
+        // Serialize customers
+        size = customers.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (const auto& customer : customers) {
+            std::vector<char> data = customer.serialize();
+            size = data.size();
+            file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            file.write(data.data(), size);
+        }
+
+        // Serialize sales
+        size = sales.size();
+        file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+        for (const auto& sale : sales) {
+            std::vector<char> data = sale.serialize();
+            size = data.size();
+            file.write(reinterpret_cast<const char*>(&size), sizeof(size));
+            file.write(data.data(), size);
+        }
+
+        file.close();
     }
 
     void deserialize() {
         std::ifstream file("Data.bin", std::ios::binary);
-        // Deserialize input byte stream to objects
+        if (!file.is_open()) {
+            std::cerr << "Error: Could not open file for reading." << std::endl;
+            return;
+        }
+
+        // Deserialize employees
+        size_t size;
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        employees.clear();
+        for (size_t i = 0; i < size; ++i) {
+            file.read(reinterpret_cast<char*>(&size), sizeof(size));
+            std::vector<char> data(size);
+            file.read(data.data(), size);
+            Employee employee;
+            size_t index = 0;
+            employee.deserialize(data, index);
+            employees.push_back(employee);
+        }
+
+        // Deserialize customers
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        customers.clear();
+        for (size_t i = 0; i < size; ++i) {
+            file.read(reinterpret_cast<char*>(&size), sizeof(size));
+            std::vector<char> data(size);
+            file.read(data.data(), size);
+            Customer customer;
+            size_t index = 0;
+            customer.deserialize(data, index);
+            customers.push_back(customer);
+        }
+
+        // Deserialize sales
+        file.read(reinterpret_cast<char*>(&size), sizeof(size));
+        sales.clear();
+        for (size_t i = 0; i < size; ++i) {
+            file.read(reinterpret_cast<char*>(&size), sizeof(size));
+            std::vector<char> data(size);
+            file.read(data.data(), size);
+            Sale sale;
+            size_t index = 0;
+            sale.deserialize(data, index);
+            sales.push_back(sale);
+        }
+
+        file.close();
     }
 
     void loadFile() {
-        // Load file called Data.bin if present and deserialize the content
-        // If not present, then show a message
+        deserialize();
+        if (employees.empty() && customers.empty() && sales.empty()) {
+            std::cout << "No data found in the file." << std::endl;
+        } else {
+            std::cout << "Data loaded successfully." << std::endl;
+        }
     }
 
     void writeFile() {
-        // Write Serialized data to file called Data.bin
-        // Internally calls serialize functions and writes the output to file
+        serialize();
+        std::cout << "Data written to file successfully." << std::endl;
     }
+
 };
 
 int main() {
@@ -240,11 +327,39 @@ int main() {
     store.addCustomer();
     store.addItem();
 
-    // Add employees/customers/items and end the program
-    // For adding sale, program must have provision to start a sale
-    // Add customer info and employee info
-    // Add items to sale
-    // End the sale (show total amount, food coupon amount)
+
+    // Save data to file
+    store.writeFile();
+
+    // Clear data from memory
+    store.employees.clear();
+    store.customers.clear();
+    store.items.clear();
+
+    // Load data from file
+    store.loadFile();
+
+    // Display loaded data
+    std::cout << "Employees:" << std::endl;
+    for (const auto& employee : store.employees) {
+        std::cout << "Name: " << employee.name << ", Salary: " << employee.salary << std::endl;
+    }
+
+    std::cout << "Customers:" << std::endl;
+    for (const auto& customer : store.customers) {
+        std::cout << "Name: " << customer.name << ", Address: " << customer.address << std::endl;
+    }
+
+    std::cout << "Items:" << std::endl;
+    for (const auto& item : store.items) {
+        std::cout << "Name: " << item->name << ", Amount: " << item->amount;
+        if (dynamic_cast<const FoodItem*>(item)) {
+            std::cout << ", Food Coupon Discount: " << static_cast<const FoodItem*>(item)->foodCouponDiscount;
+        }
+        std::cout << std::endl;
+    }    
+
+
 
     return 0;
 
